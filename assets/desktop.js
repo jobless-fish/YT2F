@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------
    웹용 바탕화면.
    1) 창과 아이콘: 끌어서 옮기기, 열기·닫기, 아래 작업 줄
-   2) YT2F.exe 받기 ("다른 이름으로 저장" 창)
+   2) YT2F.exe 받기
    3) 메모장(설명·라이선스)과 정보 창
    4) 데모용 가짜 프로그램: 실제 프로그램에서 파이썬이 하는 일을 흉내만 낸다.
       링크를 넣으면 제목과 썸네일만 가져오고, 저장은 진행 화면만 보여 준다(파일은 만들지 않는다).
@@ -161,38 +161,14 @@
   }
 
   /* ================= YT2F.exe 받기 ================= */
-  function plainDownload() {
+  // 브라우저의 보통 내려받기로 받는다. 다 받기 전에는 파일이 보이지 않아서, 덜 받은 파일을 실행하게 되는 일이 없다.
+  // ("다른 이름으로 저장" 창은 브라우저 설정에서 '다운로드 전에 저장 위치 확인'을 켜 둔 사람에게만 뜬다.
+  //  페이지가 그 창을 직접 띄우는 방법은 exe 를 받을 때 빈 파일만 남기는 문제가 있어 쓰지 않는다.)
+  function downloadExe() {
     var a = document.createElement("a");
     a.href = EXE_URL; a.download = EXE_NAME;
     document.body.appendChild(a); a.click(); a.remove();
     toast("YT2F.exe 를 받기 시작했습니다. 경고가 뜨는 이유는 '설명' 문서에 적어 두었습니다.", 5200);
-  }
-  var downloading = false;
-  function downloadExe() {
-    if (downloading) return;
-    // "다른 이름으로 저장" 창을 직접 띄울 수 있는 브라우저(크롬·엣지)에서는 그렇게 하고, 아니면 보통 방식으로 받는다
-    if (!(window.showSaveFilePicker && window.isSecureContext && /^https?:$/.test(location.protocol))) { plainDownload(); return; }
-    downloading = true;
-    var response = null;
-    fetch(EXE_URL).then(function (r) {
-      if (!r.ok || !r.body) throw new Error("fetch");
-      response = r;
-      return window.showSaveFilePicker({
-        suggestedName: EXE_NAME,
-        types: [{ description: "Windows 프로그램", accept: { "application/octet-stream": [".exe"] } }]
-      });
-    }).then(function (handle) {
-      toast("YT2F.exe 를 받는 중입니다…", 60000);
-      return handle.createWritable().then(function (out) { return response.body.pipeTo(out); });
-    }).then(function () {
-      downloading = false;
-      toast("YT2F.exe 를 저장했습니다. 실행할 때 경고가 뜨는 이유는 '설명' 문서에 적어 두었습니다.", 5200);
-    }).catch(function (err) {
-      downloading = false;
-      if (response && response.body && !response.body.locked) { try { response.body.cancel(); } catch (e) {} }
-      if (err && err.name === "AbortError") { toast("받기를 취소했습니다."); return; }      // 저장 창에서 취소
-      plainDownload();
-    });
   }
 
   /* ================= 바탕화면 아이콘 ================= */
