@@ -1,0 +1,12 @@
+# 프로그램 소스는 이 저장소에 올리지 않는다 (실수로 복사해 넣어도 올라가지 않게)
+src/
+*.py
+*.pyc
+__pycache__/
+*.spec
+build.bat
+
+# 운영체제가 만드는 파일
+Thumbs.db
+desktop.ini
+.DS_Store

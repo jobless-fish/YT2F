@@ -1,0 +1,86 @@
+YT2F 사용 조건 (개인 사용 라이선스)
+
+Copyright (c) 2026 jobless-fish
+
+
+이 프로그램(YT2F)은 아래 조건을 지키는 사람에 한해 무료로 쓸 수
+있습니다. 프로그램을 받거나 실행하면 이 조건에 동의한 것으로 봅니다.
+
+
+1. 해도 되는 것
+
+  - 개인적이고 비상업적인 용도로 프로그램을 받아서 쓰는 것
+  - 이 문서와 저작권 표시를 그대로 둔 채, 돈을 받지 않고
+    프로그램을 다른 사람에게 건네는 것
+
+
+2. 하면 안 되는 것
+
+  - 프로그램을 팔거나, 유료 상품·서비스에 넣는 것
+  - 회사 업무나 영업 등 상업적인 목적으로 쓰는 것
+  - 이 프로그램을 이용해 다른 사람에게 내려받기 서비스를 하는 것
+  - 이 문서나 저작권 표시를 지우거나 바꿔서 다시 배포하는 것
+
+
+3. 프로그램으로 저장한 영상과 소리
+
+  저장한 영상과 소리의 권리는 원래 권리자에게 있습니다.
+  이 프로그램은 그 권리를 조금도 넘겨주지 않습니다.
+
+  본인이 권리를 가진 것, 권리자가 허락한 것, 또는 법이 허용하는
+  사적 이용의 범위 안에서만 쓰세요. 다시 올리거나, 나눠 주거나,
+  상업적으로 쓰면 안 됩니다.
+
+  저작권법과 유튜브 서비스 약관을 지킬 책임은 전적으로
+  프로그램을 쓰는 사람에게 있습니다.
+
+
+4. 보증 없음
+
+  프로그램은 "있는 그대로" 제공됩니다. 제작자는 프로그램이 잘
+  동작한다거나 특정 목적에 맞는다는 것을 포함해 어떤 보증도 하지
+  않습니다. 프로그램을 쓰다가 생긴 손해나 분쟁에 대해 제작자는
+  책임지지 않습니다.
+
+  이 프로그램에는 공식 코드 서명이 없습니다. 그래서 받거나 실행할 때
+  Windows나 브라우저가 경고를 띄울 수 있습니다.
+
+
+5. 함께 쓰이는 다른 소프트웨어
+
+  아래 소프트웨어는 이 조건이 아니라 각자의 라이선스를 따릅니다.
+
+  실행 파일에 들어 있는 것
+    - Python                 PSF License
+    - pywebview              BSD 3-Clause
+    - pythonnet              MIT
+    - PyInstaller 부트로더   GPL 2.0 (묶은 프로그램에 대한 예외 조항 포함)
+    - 그 밖의 파이썬 패키지  각 패키지의 라이선스
+
+  프로그램이 처음 실행될 때 받아 오는 것
+    - yt-dlp                 The Unlicense
+    - FFmpeg                 LGPL / GPL (빌드에 따라 다름)
+    - Deno                   MIT
+
+  화면에서 불러오는 것
+    - SUIT 글꼴              SIL Open Font License 1.1
+
+  웹 데모의 배경 그림은 Microsoft의 Windows 11 배경화면이며,
+  이 라이선스의 대상이 아닙니다.
+
+  YouTube는 Google LLC의 상표입니다. 이 프로그램은 YouTube나
+  Google과 아무 관계가 없습니다.
+
+
+------------------------------------------------------------
+
+Summary in English
+
+YT2F is free for personal, non-commercial use only. You may not sell
+it, use it commercially, or run a download service with it. Media you
+save with it still belongs to its rights holders: keep it for private
+use, do not re-upload or share it, and follow copyright law and the
+YouTube Terms of Service. That responsibility is yours. The software
+is provided "as is", without warranty of any kind, and it is not code
+signed. Third-party components keep their own licenses. If the Korean
+text and this summary differ, the Korean text applies.

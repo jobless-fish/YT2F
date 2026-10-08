@@ -1,0 +1,1108 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>YT2F</title>
+<meta name="description" content="유튜브 링크를 MP4, MP3, OGG, WAV, M4A, FLAC 파일로 저장하는 Windows 프로그램 YT2F. 화면을 웹에서 미리 보고 프로그램을 받을 수 있습니다.">
+<meta property="og:title" content="YT2F">
+<meta property="og:description" content="유튜브 링크를 파일로 저장하는 Windows 프로그램. 개인적인 용도로만 사용하세요.">
+<meta property="og:image" content="assets/preview.jpg">
+<link rel="icon" type="image/png" href="assets/icon.png">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/sun-typeface/SUIT@2/fonts/variable/woff2/SUIT-Variable.css">
+<link rel="stylesheet" href="assets/desktop.css">
+<style>
+/* ==================================================================
+   YT2F 프로그램 화면 (배포판 ui.html 의 스타일 그대로.
+   창 안에 들어가도록 body 를 .desk-app 으로, 화면 고정을 창 안 고정으로만 바꿨다)
+=================================================================== */
+/* ------------------------------------------------------------------
+   바닷물에 닳은 유리(sea glass) 한 장을 수면 위에 올려 둔 화면.
+   색: 심해 남색 바탕 + 청록 빛 + 저장 버튼 하나에만 햇빛 노랑.
+------------------------------------------------------------------- */
+:root {
+  --glass-top: #1b6076;     /* 유리 모드의 유리 색 (왼쪽 위) */
+  --glass-bottom: #0a2433;  /* 유리 모드의 유리 색 (오른쪽 아래) */
+  --abyss: #06141f;
+  --deep: #0a2b3c;
+  --lagoon: #2ec4b6;
+  --seaglass: #86e3ce;
+  --foam: #ecf8f5;
+  --foam-dim: rgba(236, 248, 245, .68);
+  --foam-faint: rgba(236, 248, 245, .42);
+  --sun: #ffd166;
+  --ink: #0d2029;
+  --coral: #ffb4a6;
+  --rim: rgba(255, 255, 255, .22);
+  --well: rgba(4, 20, 30, .36);
+  --well-rim: rgba(255, 255, 255, .13);
+  --r-pane: 26px;
+  --r-well: 16px;
+  --r-small: 12px;
+}
+
+* { box-sizing: border-box; }
+.desk-app {
+  position: absolute; inset: 0;
+  background: var(--abyss);
+  color: var(--foam);
+  font-family: "SUIT Variable", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans CJK KR", sans-serif;
+  font-size: 14px;
+  line-height: 1.45;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+  cursor: default;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+:focus-visible { outline: 2px solid var(--sun); outline-offset: 2px; }
+
+/* ---------- 유리 뒤의 물 ---------- */
+.sea {
+  position: absolute; inset: 0; overflow: hidden;
+  background:
+    radial-gradient(60% 50% at 10% 6%, rgba(46, 196, 182, .55), transparent 70%),
+    radial-gradient(48% 42% at 94% 20%, rgba(110, 160, 255, .40), transparent 70%),
+    radial-gradient(50% 50% at 6% 96%, rgba(16, 110, 132, .75), transparent 70%),
+    linear-gradient(160deg, var(--deep), var(--abyss) 62%);
+}
+/* 유리 모드: 창 전체가 반투명해져서 뒤가 비친다 (투명도는 프로그램이 Windows 에 건다).
+   화면에는 유리 색만 칠하고, 그려 둔 물은 숨긴다. */
+html.glass .desk-app { background: linear-gradient(155deg, var(--glass-top), var(--glass-bottom)); }
+html.glass .sea { display: none; }
+.orb { position: absolute; border-radius: 50%; }
+.orb.a { width: 250px; height: 250px; left: -70px; top: 120px;
+  background: radial-gradient(circle at 35% 30%, #a6f3e0, #2ec4b6 55%, #0f6b78); opacity: .85; }
+.orb.b { width: 180px; height: 180px; right: -40px; top: -50px;
+  background: radial-gradient(circle at 40% 35%, #cfe0ff, #6ea0ff 60%, #3155b8); opacity: .75; }
+.orb.c { width: 300px; height: 300px; right: -90px; bottom: -110px;
+  background: radial-gradient(circle at 40% 35%, #fff0c2, #ffd166 50%, #e9973a); opacity: .78; }
+.orb.d { width: 110px; height: 110px; left: 38%; bottom: 150px;
+  background: radial-gradient(circle at 40% 35%, #b8fff0, #2ec4b6 70%); opacity: .5; }
+
+/* ---------- 유리판 ---------- */
+.pane {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; gap: 16px;
+  padding: 50px 24px 14px;
+  border: 1px solid var(--rim);
+  background: linear-gradient(155deg, rgba(255, 255, 255, .17), rgba(255, 255, 255, .05) 46%, rgba(255, 255, 255, .09));
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .38), inset 0 -1px 0 rgba(255, 255, 255, .06);
+}
+.no-blur .pane { background: rgba(14, 54, 70, .93); }
+.setup-open .pane { visibility: hidden; }
+/* 유리 모드의 색조: 숫자(투명도)를 낮추면 바탕화면이 더 많이 비친다 */
+html.glass .pane {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: linear-gradient(155deg, rgba(255, 255, 255, .13), rgba(255, 255, 255, .03) 46%, rgba(255, 255, 255, .07));
+}
+/* 자글자글한 유리 결 */
+.grain {
+  position: absolute; inset: 0; z-index: 6; pointer-events: none; opacity: .16; mix-blend-mode: overlay;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---------- 창 위쪽: 끌어서 옮기는 자리 + 닫기·최소화 ---------- */
+.bar {
+  position: absolute; top: 0; left: 0; right: 0; height: 44px; z-index: 7;
+  display: flex; align-items: center;
+}
+.bar .grip {
+  flex: 1; align-self: stretch; display: flex; align-items: center; padding-left: 24px;
+  font-size: 12.5px; font-weight: 700; letter-spacing: .01em; color: var(--foam-dim);
+}
+.lights { display: flex; gap: 9px; padding: 0 18px 0 12px; }
+.light {
+  width: 14px; height: 14px; padding: 0; border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, .22);
+  display: grid; place-items: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.light svg { width: 8px; height: 8px; opacity: 0; transition: opacity .12s; }
+.lights:hover .light svg, .light:focus-visible svg { opacity: .75; }
+.light.min { background: #f5bd3d; }
+.light.close { background: #f25f57; }
+.light:active { filter: brightness(.85); }
+
+/* ---------- 링크 ---------- */
+.field {
+  display: flex; align-items: center; gap: 8px;
+  height: 54px; padding: 0 8px 0 18px;
+  border-radius: var(--r-well);
+  background: var(--well);
+  border: 1px solid var(--well-rim);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .32);
+  transition: border-color .15s;
+}
+.field:focus-within { border-color: rgba(134, 227, 206, .75); }
+.field input {
+  flex: 1; min-width: 0; height: 100%;
+  background: none; border: 0; outline: 0;
+  font-size: 15px; letter-spacing: -.01em;
+  user-select: text; cursor: text;
+}
+.field input::placeholder { color: var(--foam-faint); }
+.ghost {
+  flex: none; height: 38px; padding: 0 14px;
+  border-radius: var(--r-small);
+  border: 1px solid var(--rim);
+  background: rgba(255, 255, 255, .10);
+  font-weight: 600; font-size: 13px;
+  transition: background .15s;
+}
+.ghost:hover { background: rgba(255, 255, 255, .18); }
+.ghost:disabled { opacity: .45; cursor: default; }
+
+/* ---------- 영상 정보 ---------- */
+.info { min-height: 96px; display: flex; align-items: center; gap: 16px; }
+.info-empty { color: var(--foam-dim); font-size: 15px; line-height: 1.6; max-width: 30em; }
+.info-error { color: var(--coral); font-size: 15px; font-weight: 600; line-height: 1.55; }
+.thumb {
+  flex: none; width: 170px; aspect-ratio: 16 / 9;
+  border-radius: 14px; overflow: hidden;
+  border: 1px solid var(--rim);
+  background: linear-gradient(140deg, rgba(134, 227, 206, .35), rgba(110, 160, 255, .25));
+  display: grid; place-items: center;
+  box-shadow: 0 10px 22px -12px rgba(0, 0, 0, .7);
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumb svg { width: 34px; height: 34px; opacity: .8; }
+.meta { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.meta h2 {
+  margin: 0; font-size: 17px; font-weight: 700; line-height: 1.35; letter-spacing: -.02em;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.meta .channel { color: var(--foam-dim); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.facts { display: flex; gap: 6px; flex-wrap: wrap; }
+.fact {
+  padding: 2px 9px; border-radius: 8px; font-size: 12px; font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  background: rgba(255, 255, 255, .12); border: 1px solid rgba(255, 255, 255, .14);
+}
+.fact.source { background: rgba(134, 227, 206, .2); border-color: rgba(134, 227, 206, .45); }
+.skeleton { display: flex; align-items: center; gap: 16px; width: 100%; }
+.skeleton .thumb, .skeleton .bar {
+  background: linear-gradient(100deg, rgba(255, 255, 255, .08) 30%, rgba(255, 255, 255, .22) 50%, rgba(255, 255, 255, .08) 70%);
+  background-size: 300% 100%; animation: shimmer 1.4s linear infinite; border-color: transparent;
+}
+.skeleton .lines { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.skeleton .bar { height: 14px; border-radius: 7px; }
+.skeleton .bar.short { width: 45%; }
+.skeleton .note { color: var(--foam-dim); font-size: 13px; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -50% 0; } }
+
+/* ---------- 형식 / 화질 ---------- */
+.choose {
+  display: flex; flex-direction: column; gap: 12px;
+  padding-top: 16px; border-top: 1px solid rgba(255, 255, 255, .13);
+}
+.row { display: grid; grid-template-columns: 44px 1fr; align-items: start; gap: 10px; }
+.row-label { padding-top: 11px; font-size: 13px; font-weight: 700; color: var(--foam-dim); }
+
+.rail {
+  position: relative; display: grid; align-items: center;
+  grid-template-columns: 1fr 1px repeat(5, 1fr);
+  height: 44px; padding: 4px;
+  border-radius: var(--r-well);
+  background: var(--well); border: 1px solid var(--well-rim);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .3);
+}
+.rail-sep { height: 18px; background: rgba(255, 255, 255, .2); }
+.rail button {
+  position: relative; z-index: 1; height: 100%;
+  background: none; border: 0; border-radius: var(--r-small);
+  font-weight: 700; font-size: 13.5px; letter-spacing: .02em;
+  color: var(--foam-dim); transition: color .2s;
+}
+.rail button[aria-checked="true"] { color: #fff; }
+.rail button:disabled { opacity: .3; cursor: default; }
+.rail-thumb {
+  position: absolute; top: 4px; bottom: 4px; left: 0; width: 0;
+  border-radius: var(--r-small);
+  background: linear-gradient(180deg, rgba(134, 227, 206, .42), rgba(46, 196, 182, .26));
+  border: 1px solid rgba(134, 227, 206, .7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .4), 0 6px 14px -8px rgba(46, 196, 182, .9);
+  transition: transform .28s cubic-bezier(.3, 1.3, .5, 1), width .28s cubic-bezier(.3, 1.3, .5, 1);
+}
+.rail-thumb.instant { transition: none; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; min-height: 36px; }
+.chip {
+  height: 36px; padding: 0 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  background: rgba(255, 255, 255, .08);
+  font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums;
+  transition: background .15s, border-color .15s;
+}
+.chip:hover:not(:disabled):not([aria-checked="true"]) { background: rgba(255, 255, 255, .16); }
+.chip[aria-checked="true"] {
+  background: rgba(134, 227, 206, .26); border-color: rgba(134, 227, 206, .8); color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35);
+}
+.chip:disabled {
+  cursor: not-allowed; color: var(--foam-faint);
+  background: transparent; border-style: dashed; border-color: rgba(255, 255, 255, .16);
+}
+.chip.fixed { cursor: default; }
+.chip small { font-size: 11.5px; font-weight: 600; opacity: .8; margin-left: 5px; }
+.hint { margin: 0 0 0 54px; min-height: 18px; font-size: 12.5px; color: var(--foam-dim); }
+
+/* ---------- 저장 ---------- */
+.act { margin-top: auto; display: flex; flex-direction: column; gap: 9px; }
+.act-line { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.save {
+  height: 56px; border: 0; border-radius: 18px;
+  background: linear-gradient(180deg, #93d7ff, #46a789);
+  color: var(--ink); font-size: 16px; font-weight: 800; letter-spacing: -.01em;
+  box-shadow: 0 12px 26px -10px rgba(255, 201, 77, .7), inset 0 1px 0 rgba(255, 255, 255, .75);
+  transition: transform .08s, filter .15s;
+}
+.save:hover:not(:disabled) { filter: brightness(1.05); }
+.save:active:not(:disabled) { transform: translateY(1px); }
+.save:disabled {
+  cursor: default; color: var(--foam-faint);
+  background: rgba(255, 255, 255, .08); border: 1px solid rgba(255, 255, 255, .14); box-shadow: none;
+}
+
+/* 진행: 유리 홈에 물이 차오르고, 물머리가 출렁인다 */
+.tide {
+  position: relative; height: 56px; border-radius: 18px; overflow: hidden;
+  background: var(--well); border: 1px solid var(--well-rim);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, .35);
+}
+.tide-text {
+  position: absolute; inset: 0; width: var(--tide-w, 100%);
+  display: flex; flex-direction: column; justify-content: center; padding: 0 18px;
+  white-space: nowrap;
+}
+.tide-text b { font-size: 15px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.tide-text span { font-size: 12px; color: var(--foam-dim); font-variant-numeric: tabular-nums; min-height: 17px; }
+.tide-fill {
+  position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  transition: width .35s ease-out;
+}
+.tide-water { position: absolute; inset: 0; overflow: hidden; background: linear-gradient(90deg, #2ec4b6, #86e3ce); }
+.tide-water .tide-text { color: var(--ink); }
+.tide-water .tide-text span { color: rgba(13, 32, 41, .72); }
+.tide-fill::after {
+  content: ""; position: absolute; left: 100%; top: -56px; margin-left: -1px;
+  width: 12px; height: 168px; background: #86e3ce;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='56'%3E%3Cpath d='M0 0H5C11 14 0 14 5 28C11 42 0 42 5 56H0Z'/%3E%3C/svg%3E") repeat-y;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='56'%3E%3Cpath d='M0 0H5C11 14 0 14 5 28C11 42 0 42 5 56H0Z'/%3E%3C/svg%3E") repeat-y;
+  animation: swell 1.5s linear infinite;
+}
+@keyframes swell { to { transform: translateY(56px); } }
+.tide.unknown .tide-fill { width: 100% !important; transition: none; }
+.tide.unknown .tide-fill::after { display: none; }
+.tide.unknown .tide-water {
+  background: linear-gradient(100deg, rgba(46, 196, 182, .45) 20%, rgba(134, 227, 206, .95) 50%, rgba(46, 196, 182, .45) 80%);
+  background-size: 260% 100%; animation: shimmer 1.6s linear infinite;
+}
+.stop { height: 56px; padding: 0 18px; border-radius: 18px; font-size: 14px; }
+
+.result { min-height: 22px; margin: 0; display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.result .msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result.ok .msg { color: var(--seaglass); font-weight: 700; }
+.result.bad .msg { color: var(--coral); font-weight: 600; white-space: normal; }
+.link-btn {
+  flex: none; padding: 0; background: none; border: 0;
+  color: var(--foam); font-weight: 700; font-size: 13px;
+  text-decoration: underline; text-underline-offset: 3px; text-decoration-color: rgba(255, 255, 255, .45);
+}
+.link-btn:hover { text-decoration-color: #fff; }
+.link-btn:disabled { opacity: .5; cursor: default; }
+
+/* ---------- 맨 아래 ---------- */
+.foot {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px;
+  padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, .10);
+  font-size: 12px; color: var(--foam-faint);
+}
+.foot .link-btn { font-size: 12px; color: var(--foam-dim); }
+.foot .tools-right { display: flex; gap: 16px; align-items: center; }
+.clear { display: flex; align-items: center; gap: 8px; color: var(--foam-dim); }
+.clear output { min-width: 2.6em; text-align: right; font-variant-numeric: tabular-nums; }
+.clear input {
+  -webkit-appearance: none; appearance: none; width: 96px; height: 16px; margin: 0;
+  background: none; cursor: pointer;
+}
+.clear input::-webkit-slider-runnable-track { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .28); }
+.clear input::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; border-radius: 50%;
+  background: var(--seaglass); border: 1px solid rgba(0, 0, 0, .25);
+}
+
+/* ---------- 처음 한 번: 도구 받기 ---------- */
+.sheet {
+  position: absolute; inset: 0; z-index: 5;
+  display: flex; flex-direction: column; justify-content: center; gap: 18px;
+  padding: 50px 44px 34px;
+  border: 1px solid var(--rim);
+  background: linear-gradient(155deg, rgba(10, 43, 60, .82), rgba(6, 20, 31, .9));
+  -webkit-backdrop-filter: blur(30px); backdrop-filter: blur(30px);
+}
+html.glass .sheet {
+  -webkit-backdrop-filter: none; backdrop-filter: none;
+  background: linear-gradient(155deg, var(--glass-top), var(--glass-bottom));
+}
+.sheet h2 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: -.03em; line-height: 1.25; }
+.sheet p { margin: 0; color: var(--foam-dim); font-size: 15px; line-height: 1.65; max-width: 30em; }
+.tools { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.tools li {
+  display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center;
+  padding: 12px 16px; border-radius: var(--r-well);
+  background: var(--well); border: 1px solid var(--well-rim);
+}
+.tools .name { font-weight: 700; }
+.tools .state { font-size: 12.5px; color: var(--foam-dim); font-variant-numeric: tabular-nums; }
+.tools .meter { grid-column: 1 / -1; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .12); overflow: hidden; }
+.tools .meter i { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #2ec4b6, #86e3ce); transition: width .3s; }
+.tools li.done .state { color: var(--seaglass); font-weight: 700; }
+.sheet .save { align-self: flex-start; padding: 0 30px; }
+.sheet .bad { color: var(--coral); font-weight: 600; }
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-app *, .desk-app *::before, .desk-app *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- ============ 바탕화면 아이콘 (끌어서 옮길 수 있다) ============ -->
+<div class="desk-icons">
+  <button class="desk-icon" type="button" data-act="download" title="YT2F.exe 받기 (Windows 프로그램)">
+    <span class="desk-pic"><img src="assets/icon.png" alt=""><i class="desk-badge"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M6 1.5v6.2M3.2 5.4L6 8.2l2.8-2.8M2.2 10.4h7.6" fill="none" stroke="#2a6df4" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></i></span>
+    <span>YT2F.exe</span>
+  </button>
+  <button class="desk-icon" type="button" data-act="about" title="프로그램 설명 열기">
+    <span class="desk-pic"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 4h18l10 10v28a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff" stroke="#9fb1c8" stroke-width="1.2"/><path d="M29 4v8a2 2 0 0 0 2 2h8z" fill="#c5d3e4"/><path d="M15 22h18M15 28h18M15 34h12" stroke="#8798ad" stroke-width="2.4" stroke-linecap="round"/></svg></span>
+    <span>YT2F 설명.txt</span>
+  </button>
+  <button class="desk-icon" type="button" data-act="license" title="사용 조건 열기">
+    <span class="desk-pic"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 4h18l10 10v28a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff" stroke="#9fb1c8" stroke-width="1.2"/><path d="M29 4v8a2 2 0 0 0 2 2h8z" fill="#c5d3e4"/><path d="M15 22h18M15 28h18M15 34h12" stroke="#8798ad" stroke-width="2.4" stroke-linecap="round"/><circle cx="34" cy="36" r="7" fill="#f2b632"/><path d="M30.6 36l2.4 2.4 4.4-4.6" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+    <span>LICENSE.txt</span>
+  </button>
+  <button class="desk-icon" type="button" data-act="info" title="이 페이지에 대해">
+    <span class="desk-pic"><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" fill="#2a6df4"/><circle cx="24" cy="15.5" r="2.8" fill="#fff"/><rect x="21.4" y="21" width="5.2" height="15" rx="2.6" fill="#fff"/></svg></span>
+    <span>정보</span>
+  </button>
+</div>
+
+<div class="desk-stage" id="deskStage">
+
+  <!-- ============ YT2F 창 (웹 데모) ============ -->
+  <div class="desk-win desk-demo opening" id="deskWin">
+    <div class="desk-frost" aria-hidden="true"></div>
+    <!-- 여기부터 프로그램 화면 (배포판 ui.html 그대로) -->
+    <div class="desk-app" id="deskApp">
+      <div class="sea" aria-hidden="true">
+        <div class="orb a"></div><div class="orb b"></div><div class="orb c"></div><div class="orb d"></div>
+      </div>
+
+      <div class="grain" aria-hidden="true"></div>
+
+      <header class="bar">
+        <div class="grip" id="grip">YT2F</div>
+        <div class="lights">
+          <button class="light min" id="minBtn" type="button" aria-label="최소화" title="최소화">
+            <svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 4h6" stroke="#3a2a00" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
+          <button class="light close" id="closeBtn" type="button" aria-label="닫기" title="닫기">
+            <svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1.5 1.5l5 5M6.5 1.5l-5 5" stroke="#4a0d08" stroke-width="1.6" stroke-linecap="round"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <main class="pane">
+        <section class="link">
+          <label class="sr" for="url">유튜브 링크</label>
+          <div class="field">
+            <input id="url" type="text" placeholder="유튜브 링크를 붙여넣으세요" autocomplete="off" spellcheck="false">
+            <button class="ghost" id="pasteBtn" type="button">붙여넣기</button>
+          </div>
+        </section>
+
+        <section class="info" id="info" aria-live="polite"></section>
+
+        <section class="choose">
+          <div class="row">
+            <span class="row-label" id="fmtLabel">형식</span>
+            <div class="rail" id="rail" role="radiogroup" aria-labelledby="fmtLabel"></div>
+          </div>
+          <div class="row">
+            <span class="row-label" id="qLabel">화질</span>
+            <div class="chips" id="chips" role="radiogroup" aria-labelledby="qLabel"></div>
+          </div>
+          <p class="hint" id="hint"></p>
+        </section>
+
+        <section class="act">
+          <div class="act-line" id="saveLine">
+            <button class="save" id="saveBtn" type="button" disabled>다른 이름으로 저장…</button>
+          </div>
+          <div class="act-line" id="tideLine" hidden>
+            <div class="tide" id="tide" role="progressbar" aria-valuemin="0" aria-valuemax="100">
+              <div class="tide-text"><b class="t-stage"></b><span class="t-detail"></span></div>
+              <div class="tide-fill" id="tideFill">
+                <div class="tide-water"><div class="tide-text"><b class="t-stage"></b><span class="t-detail"></span></div></div>
+              </div>
+            </div>
+            <button class="ghost stop" id="stopBtn" type="button">취소</button>
+          </div>
+          <p class="result" id="result" role="status"></p>
+        </section>
+
+        <footer class="foot">
+          <span id="engineInfo"></span>
+          <span class="tools-right">
+            <label class="clear" id="clearBox" hidden>투명도
+              <input id="clearRange" type="range" min="0" max="60" step="1" value="25">
+              <output id="clearOut">25%</output>
+            </label>
+            <button class="link-btn" id="engineBtn" type="button">엔진 업데이트</button>
+          </span>
+        </footer>
+      </main>
+
+      <div class="sheet" id="setup" hidden>
+        <h2>최초실행시<br>플러그인을 설치합니다.</h2>
+        <p id="setupText"></p>
+        <ul class="tools" id="tools"></ul>
+        <p class="bad" id="setupError" hidden></p>
+        <button class="save" id="setupBtn" type="button">설치</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 메모장: 설명과 라이선스를 보여 준다 ============ -->
+  <section class="desk-win desk-light desk-note is-away" id="deskNote" aria-hidden="true" aria-labelledby="deskNoteTitle">
+    <header class="desk-title">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 4h18l10 10v28a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff" stroke="#9fb1c8" stroke-width="1.2"/><path d="M29 4v8a2 2 0 0 0 2 2h8z" fill="#c5d3e4"/><path d="M15 22h18M15 28h18M15 34h12" stroke="#8798ad" stroke-width="2.4" stroke-linecap="round"/></svg>
+      <span id="deskNoteTitle">YT2F 설명.txt - 메모장</span>
+      <button class="desk-x" type="button" data-close aria-label="닫기" title="닫기"><svg viewBox="0 0 11 11" aria-hidden="true"><path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="desk-menu" aria-hidden="true"><span>파일</span><span>편집</span><span>보기</span></div>
+    <pre class="desk-text" id="deskNoteText" tabindex="0"></pre>
+    <footer class="desk-status" aria-hidden="true"><span>줄 1, 열 1</span><span>100%</span><span>UTF-8</span></footer>
+  </section>
+
+  <!-- ============ 정보 ============ -->
+  <section class="desk-win desk-light desk-info is-away" id="deskInfo" role="dialog" aria-hidden="true" aria-labelledby="deskInfoTitle">
+    <header class="desk-title">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" fill="#2a6df4"/><circle cx="24" cy="15.5" r="2.8" fill="#fff"/><rect x="21.4" y="21" width="5.2" height="15" rx="2.6" fill="#fff"/></svg>
+      <span id="deskInfoTitle">YT2F 정보</span>
+      <button class="desk-x" type="button" data-close aria-label="닫기" title="닫기"><svg viewBox="0 0 11 11" aria-hidden="true"><path d="M1 1l9 9M10 1l-9 9" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg></button>
+    </header>
+    <div class="desk-info-body">
+      <svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" fill="#2a6df4"/><circle cx="24" cy="15.5" r="2.8" fill="#fff"/><rect x="21.4" y="21" width="5.2" height="15" rx="2.6" fill="#fff"/></svg>
+      <h2>YT2F 2.0</h2>
+      <p>유튜브 링크를 MP4, MP3 같은 파일로 저장하는 Windows 프로그램입니다.</p>
+      <div class="desk-more">
+        <p>이 페이지는 기록용 웹 데모입니다. 가운데 창은 화면만 움직이고, 실제 프로그램은 바탕화면의 <strong>YT2F.exe</strong> 아이콘을 누르면 받아집니다.</p>
+        <p><strong>개인적인 용도로만 사용하세요.</strong> 받은 영상과 소리를 다시 올리거나 나눠 주면 안 됩니다.</p>
+        <p>비용 문제로 공식 코드 서명을 받지 않아서, 받거나 실행할 때 위험할 수 있다는 경고가 뜹니다. 걱정된다면 받지 않으시면 됩니다.</p>
+      </div>
+    </div>
+    <div class="desk-info-foot">
+      <button class="desk-btn" type="button" data-open="about">설명 보기</button>
+      <button class="desk-btn" type="button" data-open="license">사용 조건 보기</button>
+      <button class="desk-btn primary" type="button" data-close>확인</button>
+    </div>
+  </section>
+</div>
+
+<!-- ============ 아래 작업 줄 ============ -->
+<nav class="desk-bar" aria-label="열린 창">
+  <span class="desk-bar-note"><b>웹 데모</b><span>가운데 창은 화면만 움직이고, 실제로 저장하지는 않습니다.</span></span>
+  <div class="desk-tasks">
+    <button class="desk-task" type="button" data-win="demo" title="YT2F (웹 데모)" aria-label="YT2F 웹 데모 창"><img src="assets/icon.png" alt=""></button>
+    <button class="desk-task" type="button" data-win="note" title="메모장" aria-label="메모장" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M11 4h18l10 10v28a2 2 0 0 1-2 2H11a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z" fill="#fff" stroke="#9fb1c8" stroke-width="1.2"/><path d="M29 4v8a2 2 0 0 0 2 2h8z" fill="#c5d3e4"/><path d="M15 22h18M15 28h18M15 34h12" stroke="#8798ad" stroke-width="2.4" stroke-linecap="round"/></svg></button>
+    <button class="desk-task" type="button" data-win="info" title="정보" aria-label="정보" hidden><svg viewBox="0 0 48 48" aria-hidden="true"><circle cx="24" cy="24" r="19" fill="#2a6df4"/><circle cx="24" cy="15.5" r="2.8" fill="#fff"/><rect x="21.4" y="21" width="5.2" height="15" rx="2.6" fill="#fff"/></svg></button>
+  </div>
+  <time class="desk-clock" id="deskClock"></time>
+</nav>
+<div class="desk-toast" id="deskToast" role="status"></div>
+
+<!-- 메모장에 보여 줄 글의 사본. 웹에 올라가 있을 때는 저장소의 ABOUT.txt, LICENSE 파일을 읽어서 보여 준다 -->
+<script type="text/plain" id="deskAboutText">
+YT2F 2.0
+유튜브 링크를 파일로 저장하는 Windows 프로그램입니다.
+
+
+[ 하는 일 ]
+
+링크를 붙여넣으면 영상 정보를 보여 주고,
+MP4, MP3, OGG, WAV, M4A, FLAC 중 하나로 저장합니다.
+
+- MP4는 다시 인코딩하지 않고 원본 그대로 담습니다.
+- 화질은 원본에 있는 것까지만 고를 수 있습니다.
+  원본이 240p라면 그보다 높은 화질은 잠깁니다.
+- MP3와 OGG는 음질을 고를 수 있습니다.
+- 저장할 때는 항상 "다른 이름으로 저장" 창이 뜹니다.
+
+
+[ 쓰는 법 ]
+
+1. 바탕화면의 YT2F.exe 아이콘을 눌러 프로그램을 받습니다.
+2. 처음 실행하면 변환에 필요한 도구(yt-dlp, deno, ffmpeg)를
+   한 번 받습니다. 모두 합쳐 150~250MB쯤 됩니다.
+3. 링크를 붙여넣고, 형식과 화질을 고른 뒤 저장합니다.
+
+Windows 10, 11에서 동작합니다.
+
+
+[ 받을 때 뜨는 경고 ]
+
+받거나 처음 실행할 때 "위험할 수 있는 파일"이라는 경고가
+뜰 수 있습니다. 이 프로그램에 공식 코드 서명이 없어서 그렇습니다.
+서명은 해마다 비용이 들어서, 혼자 만들어 무료로 나누는
+프로그램이라 받지 않았습니다.
+
+무섭거나 걱정된다면 받지 않는 것이 맞습니다.
+그것 말고는 안심시켜 드릴 방법이 없습니다.
+
+
+[ 개인적인 용도로만 ]
+
+이 프로그램은 개인적인 용도로만 쓸 수 있습니다.
+받은 영상과 소리를 다시 올리거나, 남에게 나눠 주거나,
+돈을 버는 데 쓰면 안 됩니다.
+저작권과 유튜브 약관을 지키는 것은 쓰는 사람의 책임입니다.
+자세한 조건은 바탕화면의 LICENSE.txt에 있습니다.
+
+
+[ 이 페이지 ]
+
+가운데 떠 있는 YT2F 창은 화면만 움직이는 웹 데모입니다.
+여기서는 실제로 받거나 저장하지 않습니다.
+</script>
+<script type="text/plain" id="deskLicenseText">
+YT2F 사용 조건 (개인 사용 라이선스)
+
+Copyright (c) 2026 jobless-fish
+
+
+이 프로그램(YT2F)은 아래 조건을 지키는 사람에 한해 무료로 쓸 수
+있습니다. 프로그램을 받거나 실행하면 이 조건에 동의한 것으로 봅니다.
+
+
+1. 해도 되는 것
+
+  - 개인적이고 비상업적인 용도로 프로그램을 받아서 쓰는 것
+  - 이 문서와 저작권 표시를 그대로 둔 채, 돈을 받지 않고
+    프로그램을 다른 사람에게 건네는 것
+
+
+2. 하면 안 되는 것
+
+  - 프로그램을 팔거나, 유료 상품·서비스에 넣는 것
+  - 회사 업무나 영업 등 상업적인 목적으로 쓰는 것
+  - 이 프로그램을 이용해 다른 사람에게 내려받기 서비스를 하는 것
+  - 이 문서나 저작권 표시를 지우거나 바꿔서 다시 배포하는 것
+
+
+3. 프로그램으로 저장한 영상과 소리
+
+  저장한 영상과 소리의 권리는 원래 권리자에게 있습니다.
+  이 프로그램은 그 권리를 조금도 넘겨주지 않습니다.
+
+  본인이 권리를 가진 것, 권리자가 허락한 것, 또는 법이 허용하는
+  사적 이용의 범위 안에서만 쓰세요. 다시 올리거나, 나눠 주거나,
+  상업적으로 쓰면 안 됩니다.
+
+  저작권법과 유튜브 서비스 약관을 지킬 책임은 전적으로
+  프로그램을 쓰는 사람에게 있습니다.
+
+
+4. 보증 없음
+
+  프로그램은 "있는 그대로" 제공됩니다. 제작자는 프로그램이 잘
+  동작한다거나 특정 목적에 맞는다는 것을 포함해 어떤 보증도 하지
+  않습니다. 프로그램을 쓰다가 생긴 손해나 분쟁에 대해 제작자는
+  책임지지 않습니다.
+
+  이 프로그램에는 공식 코드 서명이 없습니다. 그래서 받거나 실행할 때
+  Windows나 브라우저가 경고를 띄울 수 있습니다.
+
+
+5. 함께 쓰이는 다른 소프트웨어
+
+  아래 소프트웨어는 이 조건이 아니라 각자의 라이선스를 따릅니다.
+
+  실행 파일에 들어 있는 것
+    - Python                 PSF License
+    - pywebview              BSD 3-Clause
+    - pythonnet              MIT
+    - PyInstaller 부트로더   GPL 2.0 (묶은 프로그램에 대한 예외 조항 포함)
+    - 그 밖의 파이썬 패키지  각 패키지의 라이선스
+
+  프로그램이 처음 실행될 때 받아 오는 것
+    - yt-dlp                 The Unlicense
+    - FFmpeg                 LGPL / GPL (빌드에 따라 다름)
+    - Deno                   MIT
+
+  화면에서 불러오는 것
+    - SUIT 글꼴              SIL Open Font License 1.1
+
+  웹 데모의 배경 그림은 Microsoft의 Windows 11 배경화면이며,
+  이 라이선스의 대상이 아닙니다.
+
+  YouTube는 Google LLC의 상표입니다. 이 프로그램은 YouTube나
+  Google과 아무 관계가 없습니다.
+
+
+------------------------------------------------------------
+
+Summary in English
+
+YT2F is free for personal, non-commercial use only. You may not sell
+it, use it commercially, or run a download service with it. Media you
+save with it still belongs to its rights holders: keep it for private
+use, do not re-upload or share it, and follow copyright law and the
+YouTube Terms of Service. That responsibility is yours. The software
+is provided "as is", without warranty of any kind, and it is not code
+signed. Third-party components keep their own licenses. If the Korean
+text and this summary differ, the Korean text applies.
+</script>
+
+<script src="assets/desktop.js"></script>
+<!-- 프로그램 화면의 스크립트 (배포판 ui.html 그대로) -->
+<script>
+(function () {
+  "use strict";
+  var $ = function (id) { return document.getElementById(id); };
+  var api = null;
+  var S = {
+    formats: [], byId: {},
+    fmt: "mp4",
+    quality: {},          // 형식별로 고른 화질/음질. mp4 의 "" 는 원본
+    info: null,           // 불러온 영상 정보
+    analyzing: false, token: 0, timer: null,
+    busy: false,          // 저장 창이 떠 있거나 받는 중
+    lastPath: ""
+  };
+
+  if (!(window.CSS && (CSS.supports("backdrop-filter", "blur(2px)") || CSS.supports("-webkit-backdrop-filter", "blur(2px)")))) {
+    document.documentElement.classList.add("no-blur");
+  }
+
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+
+  /* ---------------- 영상 정보 ---------------- */
+  function renderInfo(errorText) {
+    var box = $("info");
+    box.textContent = "";
+    if (S.analyzing) {
+      var sk = el("div", "skeleton");
+      sk.appendChild(el("div", "thumb"));
+      var lines = el("div", "lines");
+      lines.appendChild(el("div", "bar"));
+      lines.appendChild(el("div", "bar short"));
+      lines.appendChild(el("div", "note", "영상 정보를 확인하는 중…"));
+      sk.appendChild(lines);
+      box.appendChild(sk);
+      return;
+    }
+    if (errorText) { box.appendChild(el("p", "info-error", errorText)); return; }
+    if (!S.info) {
+      box.appendChild(el("p", "info-empty", "링크를 붙여넣으면 영상 정보와 고를 수 있는 화질이 여기에 나옵니다."));
+      return;
+    }
+    var i = S.info;
+    var thumb = el("div", "thumb");
+    var placeholder = '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8 5.5v13l11-6.5z"/></svg>';
+    if (i.thumbnail) {
+      var img = new Image();
+      img.alt = "";
+      img.onerror = function () { thumb.innerHTML = placeholder; };
+      img.src = i.thumbnail;
+      thumb.appendChild(img);
+    } else {
+      thumb.innerHTML = placeholder;
+    }
+    var meta = el("div", "meta");
+    meta.appendChild(el("h2", "", i.title));
+    if (i.channel) meta.appendChild(el("div", "channel", i.channel));
+    var facts = el("div", "facts");
+    if (i.duration) facts.appendChild(el("span", "fact", i.duration));
+    if (i.source_label) facts.appendChild(el("span", "fact source", "원본 " + i.source_label));
+    else if (!i.has_video) facts.appendChild(el("span", "fact source", "소리만 있음"));
+    if (facts.childNodes.length) meta.appendChild(facts);
+    box.appendChild(thumb);
+    box.appendChild(meta);
+  }
+
+  /* ---------------- 형식 ---------------- */
+  function buildRail() {
+    var rail = $("rail");
+    rail.textContent = "";
+    rail.appendChild(el("div", "rail-thumb instant"));
+    S.formats.forEach(function (f, n) {
+      var b = el("button", "", f.label);
+      b.type = "button";
+      b.dataset.id = f.id;
+      b.setAttribute("role", "radio");
+      b.addEventListener("click", function () { if (!S.busy) selectFormat(f.id); });
+      rail.appendChild(b);
+      if (n === 0) rail.appendChild(el("span", "rail-sep"));
+    });
+  }
+
+  function moveThumb(instant) {
+    var rail = $("rail"), thumb = rail.querySelector(".rail-thumb");
+    var btn = rail.querySelector('button[data-id="' + S.fmt + '"]');
+    if (!btn || !thumb) return;
+    thumb.classList.toggle("instant", !!instant);
+    thumb.style.width = btn.offsetWidth + "px";
+    thumb.style.transform = "translateX(" + btn.offsetLeft + "px)";
+  }
+
+  function selectFormat(id, instant) {
+    S.fmt = id;
+    var videoOk = !S.info || S.info.has_video;
+    Array.prototype.forEach.call($("rail").querySelectorAll("button"), function (b) {
+      var f = S.byId[b.dataset.id];
+      b.disabled = f.kind === "video" && !videoOk;
+      b.setAttribute("aria-checked", b.dataset.id === S.fmt ? "true" : "false");
+    });
+    moveThumb(instant);
+    renderQuality();
+  }
+
+  /* ---------------- 화질 / 음질 ---------------- */
+  function chip(label, value, opts) {
+    opts = opts || {};
+    var b = el("button", "chip" + (opts.fixed ? " fixed" : ""));
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.appendChild(document.createTextNode(label));
+    if (opts.small) b.appendChild(el("small", "", opts.small));
+    if (opts.disabled) { b.disabled = true; if (opts.why) b.title = opts.why; }
+    var checked = opts.fixed || (!opts.disabled && (S.quality[S.fmt] || "") === value);
+    b.setAttribute("aria-checked", checked ? "true" : "false");
+    if (!opts.fixed && !opts.disabled) {
+      b.addEventListener("click", function () {
+        if (S.busy) return;
+        S.quality[S.fmt] = value;
+        renderQuality();
+      });
+    }
+    return b;
+  }
+
+  function renderQuality() {
+    var f = S.byId[S.fmt], chips = $("chips"), hint = "";
+    chips.textContent = "";
+    $("qLabel").textContent = f.kind === "video" ? "화질" : "음질";
+
+    if (f.kind === "video") {
+      var i = S.info;
+      var cur = S.quality.mp4 || "";
+      // 원본보다 높은 화질이 골라져 있으면 원본으로 되돌림
+      if (cur && i && !(i.source_rung && Number(cur) <= i.source_rung)) { cur = ""; S.quality.mp4 = ""; }
+      chips.appendChild(chip("원본", "", { small: i && i.source_label ? i.source_label : "" }));
+      var ladder = i ? i.ladder : [2160, 1440, 1080, 720, 480, 360, 240, 144].map(function (r) {
+        return { res: r, label: r + "p", enabled: false };
+      });
+      var locked = 0;
+      ladder.forEach(function (l) {
+        var why = i ? (i.source_rung ? "원본이 " + i.source_rung + "p라서 고를 수 없습니다" : "원본 화질을 알 수 없습니다")
+                    : "링크를 먼저 불러오세요";
+        if (!l.enabled) locked++;
+        chips.appendChild(chip(l.label, String(l.res), { disabled: !l.enabled, why: why }));
+      });
+      var picked = cur ? Number(cur) : (i ? i.source_rung : 0);
+      if (!i) hint = "링크를 불러오면 원본에 있는 화질만 고를 수 있게 켜집니다.";
+      else if (picked > 1080) hint = "1080p보다 높은 화질은 VP9·AV1 코덱으로 저장되어, 일부 편집 프로그램에서 안 열릴 수 있습니다.";
+      else if (!i.source_rung) hint = "원본 화질 정보가 없어서 원본 그대로만 저장할 수 있습니다.";
+      else if (locked) hint = "원본이 " + i.source_rung + "p라서 그보다 높은 화질은 고를 수 없습니다.";
+      else hint = "다시 인코딩하지 않고 원본 그대로 담습니다.";
+    } else if (f.qualities) {
+      if (f.qualities.indexOf(S.quality[f.id]) < 0) S.quality[f.id] = f.default;
+      f.qualities.forEach(function (q) { chips.appendChild(chip(q + "kbps", q)); });
+      hint = "유튜브의 소리 원본은 보통 128~160kbps라서, 더 높게 골라도 음질이 좋아지지는 않습니다.";
+    } else if (f.note === "copy") {
+      chips.appendChild(chip("원본 그대로", "", { fixed: true }));
+      hint = "유튜브의 소리를 다시 변환하지 않고 그대로 담습니다.";
+    } else {
+      chips.appendChild(chip("무손실", "", { fixed: true }));
+      hint = "무손실 형식이라 음질을 고르지 않습니다. 파일이 큽니다.";
+    }
+    $("hint").textContent = hint;
+    refreshSave();
+  }
+
+  function refreshSave() {
+    $("saveBtn").disabled = !S.info || S.analyzing || S.busy;
+    $("pasteBtn").disabled = S.busy;
+    $("url").readOnly = S.busy;
+  }
+
+  /* ---------------- 링크 불러오기 ---------------- */
+  function analyze() {
+    var url = $("url").value.trim();
+    clearTimeout(S.timer);
+    if (!url || S.busy) return;
+    var token = ++S.token;
+    S.analyzing = true; S.info = null;
+    setResult("", "");
+    renderInfo(); selectFormat(S.fmt, true);
+    api.analyze(url).then(function (r) {
+      if (token !== S.token) return;
+      S.analyzing = false;
+      if (r && r.ok) {
+        S.info = r.info;
+        S.quality.mp4 = "";                       // 영상은 항상 원본이 기본
+        if (!r.info.has_video && S.byId[S.fmt].kind === "video") S.fmt = "mp3";
+        renderInfo();
+      } else {
+        renderInfo((r && r.error) || "영상 정보를 가져오지 못했습니다.");
+      }
+      selectFormat(S.fmt, true);
+    }, function () {
+      if (token !== S.token) return;
+      S.analyzing = false;
+      renderInfo("영상 정보를 가져오지 못했습니다.");
+      selectFormat(S.fmt, true);
+    });
+  }
+
+  function urlEdited() {
+    if (S.busy) return;
+    S.token++; S.analyzing = false;
+    if (S.info) { S.info = null; }
+    renderInfo(); selectFormat(S.fmt, true);
+    clearTimeout(S.timer);
+    var v = $("url").value.trim();
+    if (/^https?:\/\/\S+\/\S+/i.test(v) || /^[\w.-]+\.[a-z]{2,}\/\S+/i.test(v)) S.timer = setTimeout(analyze, 450);
+  }
+
+  /* ---------------- 저장 ---------------- */
+  function setResult(kind, text, withFolder) {
+    var r = $("result");
+    r.className = "result" + (kind ? " " + kind : "");
+    r.textContent = "";
+    if (!text) return;
+    r.appendChild(el("span", "msg", text));
+    if (withFolder) {
+      var b = el("button", "link-btn", "폴더에서 보기");
+      b.type = "button";
+      b.addEventListener("click", function () { api.show_in_folder(S.lastPath); });
+      r.appendChild(b);
+    }
+  }
+
+  function showTide(on) {
+    $("saveLine").hidden = on;
+    $("tideLine").hidden = !on;
+    if (on) {
+      $("stopBtn").disabled = false;
+      $("stopBtn").textContent = "취소";
+      sizeTide();
+    }
+  }
+
+  function sizeTide() {
+    var t = $("tide");
+    if (t.offsetWidth) t.style.setProperty("--tide-w", t.offsetWidth + "px");
+  }
+
+  function paintTide(stage, pct, detail) {
+    var t = $("tide"), known = typeof pct === "number";
+    t.classList.toggle("unknown", !known);
+    $("tideFill").style.width = known ? Math.max(0, Math.min(100, pct)) + "%" : "100%";
+    if (known) t.setAttribute("aria-valuenow", Math.round(pct)); else t.removeAttribute("aria-valuenow");
+    var head = (stage || "준비하는 중") + (known ? " " + Math.round(pct) + "%" : "…");
+    Array.prototype.forEach.call(t.querySelectorAll(".t-stage"), function (n) { n.textContent = head; });
+    Array.prototype.forEach.call(t.querySelectorAll(".t-detail"), function (n) { n.textContent = detail || ""; });
+  }
+
+  function save() {
+    if (!S.info || S.busy) return;
+    S.busy = true; refreshSave(); setResult("", "");
+    var req = { url: S.info.url, title: S.info.title, fmt: S.fmt, quality: S.quality[S.fmt] || "" };
+    api.save(req).then(function (r) {
+      if (!r || !r.ok) { S.busy = false; refreshSave(); setResult("bad", (r && r.error) || "저장을 시작하지 못했습니다."); return; }
+      if (r.cancelled) { S.busy = false; refreshSave(); return; }
+      S.lastPath = r.path || "";
+      showTide(true); paintTide("준비하는 중", null, "");
+      poll();
+    }, function () { S.busy = false; refreshSave(); setResult("bad", "저장을 시작하지 못했습니다."); });
+  }
+
+  function poll() {
+    api.job_state().then(function (st) {
+      if (st.active) {
+        paintTide(st.stage, st.pct, st.detail);
+        setTimeout(poll, 220);
+        return;
+      }
+      showTide(false);
+      S.busy = false; refreshSave();
+      if (st.error) setResult("bad", st.error);
+      else if (st.cancelled) setResult("", "취소했습니다.");
+      else if (st.done) { S.lastPath = st.path || S.lastPath; setResult("ok", "저장했습니다  " + (st.detail || ""), true); }
+      else setResult("bad", "저장하지 못했습니다. 다시 해 보세요.");
+    }, function () { setTimeout(poll, 500); });
+  }
+
+  /* ---------------- 유리 효과: 창 투명도 ---------------- */
+  var clearTimer = null, clearBusy = false, clearWanted = null;
+
+  function showGlass(info) {
+    if (!info) return;
+    document.documentElement.classList.toggle("glass", !!info.on);
+    $("clearBox").hidden = !info.on;
+    $("clearRange").max = info.max || 60;
+    $("clearRange").value = info.transparency;
+    $("clearOut").textContent = info.transparency + "%";
+  }
+
+  function sendTransparency() {
+    if (clearBusy || clearWanted === null) return;
+    var v = clearWanted; clearWanted = null; clearBusy = true;
+    api.set_transparency(v).then(function () { clearBusy = false; sendTransparency(); },
+                                 function () { clearBusy = false; });
+  }
+
+  function transparencyMoved() {
+    var v = Number($("clearRange").value);
+    $("clearOut").textContent = v + "%";
+    clearWanted = v;
+    clearTimeout(clearTimer);
+    clearTimer = setTimeout(sendTransparency, 30);
+  }
+
+  /* ---------------- 엔진 ---------------- */
+  function showEngine(version, note) {
+    $("engineInfo").textContent = note || (version ? "엔진 " + version : "");
+  }
+
+  function updateEngine() {
+    if (S.busy) return;
+    var b = $("engineBtn");
+    b.disabled = true;
+    showEngine("", "엔진 업데이트를 확인하는 중…");
+    api.update_engine().then(function (r) {
+      b.disabled = false;
+      showEngine("", (r && r.message) || "업데이트하지 못했습니다.");
+    }, function () { b.disabled = false; showEngine("", "업데이트하지 못했습니다."); });
+  }
+
+  /* ---------------- 처음 한 번: 도구 받기 ---------------- */
+  function renderTools(items) {
+    var ul = $("tools");
+    ul.textContent = "";
+    items.forEach(function (it) {
+      var li = el("li", it.state === "done" ? "done" : "");
+      li.appendChild(el("span", "name", it.label));
+      var state = it.state === "done" ? "받았습니다" : it.state === "run" ? (it.detail || "받는 중…") : "기다리는 중";
+      li.appendChild(el("span", "state", state));
+      var meter = el("div", "meter"), bar = el("i");
+      bar.style.width = (it.state === "done" ? 100 : (typeof it.pct === "number" ? it.pct : 0)) + "%";
+      meter.appendChild(bar); li.appendChild(meter);
+      ul.appendChild(li);
+    });
+  }
+
+  function openSetup(init) {
+    var missing = init.engines.missing.map(function (n) { return { name: n, label: init.engine_labels[n], state: "wait" }; });
+    $("setup").hidden = false;
+    document.body.classList.add("setup-open");
+    renderTools(missing);
+    if (!init.engines.can_install) {
+      $("setupText").textContent = "이 컴퓨터에서는 yt-dlp, ffmpeg, deno 를 직접 설치한 뒤 다시 실행해 주세요.";
+      $("setupBtn").hidden = true;
+      return;
+    }
+    $("setupText").textContent = "내려받기와 변환에 쓰는 도구 " + missing.length +
+      "개를 받습니다. 모두 합쳐 150~250MB이고, 한 번 받으면 다시 받지 않습니다.";
+    $("setupBtn").onclick = function () {
+      $("setupBtn").disabled = true; $("setupError").hidden = true;
+      api.setup_engines().then(function (r) {
+        if (!r || !r.ok) { setupFailed((r && r.error) || "시작하지 못했습니다."); return; }
+        pollSetup();
+      }, function () { setupFailed("시작하지 못했습니다."); });
+    };
+  }
+
+  function setupFailed(text) {
+    $("setupError").textContent = text; $("setupError").hidden = false;
+    $("setupBtn").disabled = false; $("setupBtn").textContent = "다시 받기";
+  }
+
+  function pollSetup() {
+    api.job_state().then(function (st) {
+      if (st.items && st.items.length) renderTools(st.items);
+      if (st.active) { setTimeout(pollSetup, 250); return; }
+      if (st.error) { setupFailed(st.error); return; }
+      api.init().then(function (init) {
+        if (init.engines.ready) {
+          $("setup").hidden = true;
+          document.body.classList.remove("setup-open");
+          moveThumb(true);
+          showEngine(init.engine_version); $("url").focus();
+        }
+        else setupFailed("도구를 모두 받지 못했습니다. 다시 받아 주세요.");
+      });
+    }, function () { setTimeout(pollSetup, 500); });
+  }
+
+  /* ---------------- 시작 ---------------- */
+  function start() {
+    if (api) return;
+    api = window.pywebview.api;
+    api.init().then(function (init) {
+      showGlass(init.glass);
+      S.formats = init.formats;
+      init.formats.forEach(function (f) { S.byId[f.id] = f; });
+      S.quality = init.settings.quality || {};
+      S.quality.mp4 = "";
+      S.fmt = S.byId[init.settings.fmt] ? init.settings.fmt : "mp4";
+      buildRail();
+      renderInfo();
+      selectFormat(S.fmt, true);
+      showEngine(init.engine_version);
+      if (!init.engines.ready) openSetup(init); else $("url").focus();
+    });
+
+    $("url").addEventListener("input", urlEdited);
+    $("url").addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); analyze(); } });
+    $("pasteBtn").addEventListener("click", function () {
+      api.paste().then(function (text) {
+        if (!text) { $("url").focus(); return; }
+        $("url").value = text.split(/\s+/)[0];
+        analyze();
+      });
+    });
+    $("saveBtn").addEventListener("click", save);
+    $("stopBtn").addEventListener("click", function () {
+      $("stopBtn").disabled = true; $("stopBtn").textContent = "취소 중";
+      api.cancel();
+    });
+    $("engineBtn").addEventListener("click", updateEngine);
+    $("clearRange").addEventListener("input", transparencyMoved);
+    $("grip").addEventListener("mousedown", function (e) { if (e.button === 0) { e.preventDefault(); api.win_drag(); } });
+    $("minBtn").addEventListener("click", function () { api.win_minimize(); });
+    $("closeBtn").addEventListener("click", function () { api.win_close(); });
+    window.addEventListener("resize", function () { moveThumb(true); sizeTide(); });
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(function () { moveThumb(true); });
+  }
+
+  if (window.pywebview && window.pywebview.api) start();
+  window.addEventListener("pywebviewready", start);
+})();
+</script>
+</body>
+</html>
